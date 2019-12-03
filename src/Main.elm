@@ -1,12 +1,13 @@
-port module Main exposing (Model, ModelExposedToStorage, Msg(..), activeNote, appListItemClass, appWrapperClassName, deleteNote, emptyModel, init, isActiveNote, listIcon, main, newNote, savedModelToModel, setStorage, switchColorTheme, update, updateActiveNoteBody, updateWithStorage, view, viewNoteListItem)
+port module Main exposing (Model, Msg(..), activeNote, appListItemClass, appWrapperClassName, deleteNote, emptyModel, init, isActiveNote, listIcon, main, newNote, savedModelToModel, setStorage, switchColorTheme, update, updateActiveNoteBody, updateWithStorage, view, viewNoteListItem)
 
 import Browser exposing (..)
-import Html exposing (Html, a, aside, button, div, h1, i, img, p, text, textarea)
-import Html.Attributes exposing (class, href, placeholder, src, value)
+import Html exposing (Html, a, aside, button, div, h1, i, img, input, label, p, text, textarea)
+import Html.Attributes exposing (class, classList, for, href, id, name, placeholder, src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Markdown
+import Modal
 import Note exposing (Note)
 import Styles
 import Types exposing (..)
@@ -21,14 +22,7 @@ type alias Model =
     , listVisible : Bool
     , noteList : List Note
     , activeNoteId : Note.Id
-    }
-
-
-type alias ModelExposedToStorage =
-    { colorTheme : ColorTheme
-    , listVisible : Bool
-    , noteList : List Note
-    , activeNoteId : Note.Id
+    , showModal : Bool
     }
 
 
@@ -38,6 +32,7 @@ emptyModel =
     , noteList = [ { id = 1, body = "" } ]
     , listVisible = False
     , activeNoteId = 1
+    , showModal = False
     }
 
 
@@ -67,11 +62,12 @@ decodeColorTheme =
 
 modelDecoder : Decode.Decoder Model
 modelDecoder =
-    Decode.map4 Model
+    Decode.map5 Model
         (Decode.field "colorTheme" decodeColorTheme)
         (Decode.field "listVisible" Decode.bool)
         (Decode.field "noteList" (Decode.list noteDecoder))
         (Decode.field "activeNoteId" Decode.int)
+        (Decode.field "showModal" Decode.bool)
 
 
 
@@ -139,6 +135,9 @@ type Msg
     | AddNewNote
     | OpenNote Note.Id
     | SwitchColorTheme
+    | OpenSettingModal
+    | CloseSettingModal
+    | UpdateSetting
 
 
 switchColorTheme : Model -> Model
@@ -238,6 +237,15 @@ update msg model =
         SwitchColorTheme ->
             ( switchColorTheme model, Cmd.none )
 
+        UpdateSetting ->
+            ( model, Cmd.none )
+
+        CloseSettingModal ->
+            ( { model | showModal = False }, Cmd.none )
+
+        OpenSettingModal ->
+            ( { model | showModal = True }, Cmd.none )
+
 
 deleteNote : Model -> Note.Id -> Model
 deleteNote model id =
@@ -308,6 +316,8 @@ view model =
                         [ i [ class "material-icons" ] [ text "note_add" ] ]
                     , button [ class "app-sidebar__buttons__btn btn", onClick SwitchColorTheme ]
                         [ i [ class "material-icons" ] [ text "lightbulb_outline" ] ]
+                    , button [ class "app-sidebar__buttons__btn btn", onClick OpenSettingModal ]
+                        [ i [ class "material-icons" ] [ text "settings_applications" ] ]
                     ]
                 ]
             , div (List.concat [ [ class "app-list" ], Styles.appList model.listVisible ])
@@ -323,6 +333,22 @@ view model =
                 , Markdown.toHtml [] (activeNote model).body
                 ]
             ]
+        , viewSettingModal model.showModal
+        ]
+
+
+viewSettingModal : Bool -> Html Msg
+viewSettingModal visible =
+    Modal.view { visible = visible, title = "Sync with your local direcotry", children = viewSetting } CloseSettingModal
+
+
+viewSetting : Html Msg
+viewSetting =
+    div [ class "app-storage-setting", onClick UpdateSetting ]
+        [ div [ class "app-storage-setting__radio-buttons" ]
+            [ input [ type_ "file", id "storage-setting-file", name "storage" ] []
+            ]
+        , button [] [ text "Update Setting" ]
         ]
 
 
